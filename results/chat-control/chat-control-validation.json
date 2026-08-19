@@ -1,0 +1,23 @@
+{
+  "chat_artifact_sha256": "cd86f5589ccc5b03c3fac5cbff4d63cbd9412da5caccba80d365f5d88bf2054a",
+  "examples": 6277,
+  "metadata": {
+    "candidate_strings": [
+      "True",
+      "False"
+    ],
+    "chat_template_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+    "dtype": "bfloat16",
+    "examples": 6277,
+    "model": "/home/ai/reproductions/grounding-mechanisticprobe/models/Qwen2.5-7B-Instruct",
+    "prompt_format": "chat-multiturn",
+    "random_seed": null,
+    "sample_name": "formal",
+    "uses_default_system_message": true
+  },
+  "phase": "postflight",
+  "reference_artifacts_unchanged": true,
+  "row_and_label_alignment": true,
+  "skipped_examples": 0,
+  "statement_rows": 85820
+}

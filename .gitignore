@@ -11,7 +11,9 @@ data/
 artifacts/
 logs/
 models/
-results/
+results/*
+!results/chat-control/
+!results/chat-control/**
 *.jsonl
 *.safetensors
 *.bin

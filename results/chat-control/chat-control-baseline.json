@@ -1,0 +1,23 @@
+{
+  "demos": 4,
+  "examples": 6277,
+  "max_length": 2048,
+  "maximum_chat_tokens": 482,
+  "phase": "preflight",
+  "prompt_format": "chat-multiturn",
+  "protected_sha256": {
+    "artifacts/features-base-formal.jsonl": "149328cb598d8cea93976213cfa886903d0cd31ed3689ddaee0961a502d1242e",
+    "artifacts/features-base-formal.meta.json": "1e4d95a378baf78404f31168c2a0c27f32ce4da74fa7bbab2fad8e46d84de603",
+    "artifacts/features-base-formal.skipped.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "artifacts/features-instruct-formal.jsonl": "7b2d2c5fc3f5636ebc76f0ce6f802e6bbe53d9d0d6daaca6000d19504c62d03f",
+    "artifacts/features-instruct-formal.meta.json": "feb199ad31982ce97ea213113438cb304500ced541c363c5475d458373683496",
+    "artifacts/features-instruct-formal.skipped.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "artifacts/features-random-formal.jsonl": "708618abbe816c9dce2bcc763d0d7fab595fb6aa00aab3c07283b067aa4e070a",
+    "artifacts/features-random-formal.meta.json": "d80df5937f103d5fabf11f32eca8dc25b0cecb2a252213e6ed22901a39115b40",
+    "artifacts/features-random-formal.skipped.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "data/frozen/formal-icl_demos.json": "16b597d657ad619a7b17efc32d452e5b9042022af7803b58c40920ba736cbace",
+    "data/frozen/formal-manifest.json": "03556d6070886ac77a6abc24b09c3795488cbdde4e4e765ee4e4c61d2f3b8129",
+    "data/frozen/formal.jsonl": "a75166dcd1ecb2e715e7d132492c28c7374e98b965740095462022751a76a74e"
+  },
+  "statement_rows": 85820
+}
