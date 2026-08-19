@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -41,6 +42,53 @@ def build_prompt(row: dict[str, Any], demos: list[dict[str, Any]]) -> Prompt:
     query_start = len(text)
     text += row["question"] + " True or False?"
     return Prompt(text=text, statement_spans=statement_spans, query_span=(query_start, len(text)))
+
+
+def build_chat_multiturn_prompt(tokenizer: Any, row: dict[str, Any], demos: list[dict[str, Any]]) -> Prompt:
+    """Render the fixed ICL examples as native user/assistant turns.
+
+    No explicit system message is supplied: Qwen2.5-Instruct's official
+    template therefore inserts its own default system message.
+    """
+    if not getattr(tokenizer, "chat_template", None):
+        raise ValueError("chat-multiturn requires a tokenizer with a chat template")
+    messages: list[dict[str, str]] = []
+    for demo in demos:
+        messages.extend(
+            [
+                {"role": "user", "content": build_prompt(demo, []).text},
+                {"role": "assistant", "content": "True" if demo["answer"] else "False"},
+            ]
+        )
+    target = build_prompt(row, [])
+    messages.append({"role": "user", "content": target.text})
+    rendered = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    if not isinstance(rendered, str):
+        raise TypeError("apply_chat_template(tokenize=False) did not return text")
+    offset = rendered.rfind(target.text)
+    if offset < 0:
+        raise ValueError("Could not locate the final user content in the rendered chat prompt")
+    return Prompt(
+        text=rendered,
+        statement_spans=[(start + offset, end + offset) for start, end in target.statement_spans],
+        query_span=(target.query_span[0] + offset, target.query_span[1] + offset),
+    )
+
+
+def render_prompt(tokenizer: Any, row: dict[str, Any], demos: list[dict[str, Any]], prompt_format: str) -> Prompt:
+    if prompt_format == "raw":
+        return build_prompt(row, demos)
+    if prompt_format == "chat-multiturn":
+        return build_chat_multiturn_prompt(tokenizer, row, demos)
+    raise ValueError(f"Unsupported prompt format: {prompt_format}")
+
+
+def answer_candidates(prompt_format: str) -> tuple[str, str]:
+    if prompt_format == "raw":
+        return " True", " False"
+    if prompt_format == "chat-multiturn":
+        return "True", "False"
+    raise ValueError(f"Unsupported prompt format: {prompt_format}")
 
 
 def _indices_for_span(offsets: list[tuple[int, int]], span: tuple[int, int]) -> list[int]:
@@ -88,8 +136,15 @@ def _load_model(model_id: str, device: torch.device) -> tuple[Any, Any, str]:
     return model, tokenizer, str(dtype).replace("torch.", "")
 
 
-def _extract_row(model: Any, tokenizer: Any, row: dict[str, Any], demos: list[dict[str, Any]], max_length: int) -> list[dict[str, Any]]:
-    prompt = build_prompt(row, demos)
+def _extract_row(
+    model: Any,
+    tokenizer: Any,
+    row: dict[str, Any],
+    demos: list[dict[str, Any]],
+    max_length: int,
+    prompt_format: str,
+) -> list[dict[str, Any]]:
+    prompt = render_prompt(tokenizer, row, demos, prompt_format)
     encoded = tokenizer(
         prompt.text,
         return_tensors="pt",
@@ -120,8 +175,9 @@ def _extract_row(model: Any, tokenizer: Any, row: dict[str, Any], demos: list[di
             features[statement_number].append(float(value.cpu()))
     del output, attentions
 
-    score_true = _candidate_logprob(model, tokenizer, encoded["input_ids"], prompt.text, " True")
-    score_false = _candidate_logprob(model, tokenizer, encoded["input_ids"], prompt.text, " False")
+    candidate_true, candidate_false = answer_candidates(prompt_format)
+    score_true = _candidate_logprob(model, tokenizer, encoded["input_ids"], prompt.text, candidate_true)
+    score_false = _candidate_logprob(model, tokenizer, encoded["input_ids"], prompt.text, candidate_false)
     predicted_true = score_true > score_false
     return [
         {
@@ -137,6 +193,7 @@ def _extract_row(model: Any, tokenizer: Any, row: dict[str, Any], demos: list[di
             "correct": predicted_true == row["answer"],
             "score_true": score_true,
             "score_false": score_false,
+            "prompt_format": prompt_format,
             "features": features[index],
         }
         for index in range(len(row["statements"]))
@@ -149,6 +206,7 @@ def main() -> None:
     parser.add_argument("--model-id", required=True, help="Hugging Face ID, local snapshot path, or __random__")
     parser.add_argument("--artifact-name", help="Stable output name; required for local snapshot paths")
     parser.add_argument("--sample-name", default="pilot", help="Frozen sample name created by prepare")
+    parser.add_argument("--prompt-format", choices=("raw", "chat-multiturn"), default="raw")
     parser.add_argument("--random-seed", type=int, default=42)
     parser.add_argument("--max-length", type=int, default=2048)
     parser.add_argument("--overwrite", action="store_true")
@@ -177,6 +235,14 @@ def main() -> None:
                 "dtype": dtype,
                 "examples": len(rows),
                 "sample_name": args.sample_name,
+                "prompt_format": args.prompt_format,
+                "candidate_strings": list(answer_candidates(args.prompt_format)),
+                "uses_default_system_message": args.prompt_format == "chat-multiturn",
+                "chat_template_sha256": (
+                    hashlib.sha256(tokenizer.chat_template.encode()).hexdigest()
+                    if args.prompt_format == "chat-multiturn"
+                    else None
+                ),
                 "random_seed": args.random_seed if args.model_id == "__random__" else None,
             },
             indent=2,
@@ -186,7 +252,9 @@ def main() -> None:
     with output_path.open("w") as handle:
         for number, row in enumerate(rows, start=1):
             try:
-                for feature_row in _extract_row(model, tokenizer, row, demos, args.max_length):
+                for feature_row in _extract_row(
+                    model, tokenizer, row, demos, args.max_length, args.prompt_format
+                ):
                     handle.write(json.dumps(feature_row) + "\n")
             except Exception as error:  # Record, don't silently alter the sample.
                 skipped.append({"example_id": row["example_id"], "error": repr(error)})

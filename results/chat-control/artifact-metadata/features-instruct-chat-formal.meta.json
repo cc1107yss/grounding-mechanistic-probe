@@ -1,0 +1,14 @@
+{
+  "model": "/home/ai/reproductions/grounding-mechanisticprobe/models/Qwen2.5-7B-Instruct",
+  "dtype": "bfloat16",
+  "examples": 6277,
+  "sample_name": "formal",
+  "prompt_format": "chat-multiturn",
+  "candidate_strings": [
+    "True",
+    "False"
+  ],
+  "uses_default_system_message": true,
+  "chat_template_sha256": "cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f",
+  "random_seed": null
+}
