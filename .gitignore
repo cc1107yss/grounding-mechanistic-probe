@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.venv/
+
+# Experiment products and large files
+data/
+artifacts/
+logs/
+models/
+results/
+*.jsonl
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Local environment files
+.env
+.DS_Store
