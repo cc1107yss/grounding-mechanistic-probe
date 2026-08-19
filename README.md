@@ -4,6 +4,8 @@ This repository implements the **reasoning-side** milestone of a larger project 
 
 No language-model weights are fine-tuned. The only learned components are lightweight k-nearest-neighbor and logistic-regression probes over compact attention features.
 
+**Advisor-facing reports:** [English](EXPERIMENT_REPORT.md) | [中文](EXPERIMENT_REPORT_ZH.md)
+
 ## Scope
 
 - **SP1 — useful-statement probe:** whether a context statement appears in the gold proof.
