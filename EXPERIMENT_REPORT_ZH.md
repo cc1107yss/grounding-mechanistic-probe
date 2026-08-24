@@ -2,7 +2,7 @@
 
 [English](EXPERIMENT_REPORT.md) | **中文**
 
-> 本实验检验冻结模型的注意力中能否解码证明相关性与证明步骤信息，以及指令微调和原生 chat 格式是否改变这些表征；它尚未直接测量符号接地。
+本实验检验冻结模型的注意力中能否解码证明相关性与证明步骤信息，以及指令微调和原生 chat 格式是否改变这些表征；它尚未直接测量符号接地。
 
 ## 执行摘要
 
@@ -42,7 +42,7 @@ flowchart LR
 
 | 组成部分 | 固定设置 |
 | --- | --- |
-| 数据集 | 原作者处理后的 ProofWriter-CWA 测试数据 |
+| 数据集 | [原作者处理后的 ProofWriter-CWA 测试数据](https://huggingface.co/datasets/yyyyifan/MechanisticProbe_ProofWriter_ARC) |
 | 正式样本 | 6,277 个问题；85,820 条语句级记录 |
 | 语句数量分桶 | 2、4、8、12、16、20、24 |
 | Checkpoint | Qwen2.5-7B Base；Qwen2.5-7B-Instruct |
