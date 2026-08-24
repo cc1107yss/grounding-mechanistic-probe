@@ -1,6 +1,6 @@
 # Formal Reasoning-Side Results
 
-**Full advisor-facing reports:** [English](EXPERIMENT_REPORT.md) | [中文](EXPERIMENT_REPORT_ZH.md)
+**Full reports:** [English](EXPERIMENT_REPORT.md) | [中文](EXPERIMENT_REPORT_ZH.md)
 
 ## Protocol
 
