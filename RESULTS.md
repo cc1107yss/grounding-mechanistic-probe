@@ -1,5 +1,7 @@
 # Formal Reasoning-Side Results
 
+**Full advisor-facing reports:** [English](EXPERIMENT_REPORT.md) | [中文](EXPERIMENT_REPORT_ZH.md)
+
 ## Protocol
 
 The formal run freezes 6,277 ProofWriter-CWA test questions across statement-count buckets `2, 4, 8, 12, 16, 20, 24`, producing 85,820 statement-level records. It compares frozen Qwen2.5-7B base, Qwen2.5-7B-Instruct, and an architecture-matched random-weight control. All intervals are 95% cluster-bootstrap intervals with 1,000 replicates. The strict split holds out complete theories.
