@@ -1,8 +1,8 @@
-# 冻结 Qwen MechanisticProbe 复现实验报告
+# 冻结 Qwen MechanisticProbe 复现实验
 
 [English](EXPERIMENT_REPORT.md) | **中文**
 
-原论文[*Towards a Mechanistic Interpretation of Multi-Step Reasoning Capabilities of Language Models*](https://aclanthology.org/2023.emnlp-main.299/) 及其[官方代码](https://github.com/yifan-h/MechanisticProbe)；本复现实验数字以冻结的[结果汇总](RESULTS.md)和[完整结果 JSON](results/chat-control/)为准。
+原论文[*Towards a Mechanistic Interpretation of Multi-Step Reasoning Capabilities of Language Models*](https://aclanthology.org/2023.emnlp-main.299/) 及其[官方代码](https://github.com/yifan-h/MechanisticProbe)；[结果汇总](RESULTS.md)。
 
 ## 1. 摘要
 
@@ -12,11 +12,11 @@
 
 ### 2.1 用标准推理树表示多步推理
 
-给定语句集合 $S=\{S_1,S_2,\ldots\}$ 和问题 $Q$，原论文把正确推理过程表示为推理树 $G$，并提出核心假设：如果模型确实以类似标准的步骤进行推理，那么模型的注意力模式 $A$ 中应当能够恢复出 $G$。该问题被写成 $P(G\mid A)$。[论文第 2–3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)。
+给定语句集合 $S=\{S_1,S_2,\ldots\}$ 和问题 $Q$，把正确推理过程表示为推理树 $G$，并提出核心假设：如果模型确实以类似标准的步骤进行推理，那么模型的注意力模式 $A$ 中应当能够恢复出 $G$。该问题被写成 $P(G\mid A)$。
 
 ### 2.2 把庞大的注意力张量压缩为语句级特征
 
-完整注意力张量的规模为 $L\times H\times |T|^2$。为避免探针本身学习过强，原论文依次进行以下简化（[论文第 3.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=3)）：
+完整注意力张量的规模为 $L\times H\times |T|^2$。为避免探针本身学习过强（如果把完整 attention 矩阵交给一个大型 MLP 或 Transformer probe，它可能利用这些统计模式直接预测答案或推理标签。），原论文依次进行以下简化（[论文第 3.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=3)）：
 
 1. 对因果语言模型，首先聚焦于用于预测下一 token 的最后一个输入 token 的注意力，将特征规模降为 $L\times H\times |T|$。
 2. 对所有注意力头取均值，将规模进一步降为 $L\times |T|$。
