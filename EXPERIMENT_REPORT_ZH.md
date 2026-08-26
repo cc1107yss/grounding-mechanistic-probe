@@ -2,15 +2,11 @@
 
 [English](EXPERIMENT_REPORT.md) | **中文**
 
-本报告严格区分三类证据：原论文事实以 [ACL Anthology 论文](https://aclanthology.org/2023.emnlp-main.299/)及其[官方代码](https://github.com/yifan-h/MechanisticProbe)为准；本复现实验设置以本仓库代码为准；本复现实验数字以冻结的[结果汇总](RESULTS.md)和[完整结果 JSON](results/chat-control/)为准。本文所称“复现”是方法层面的概念复现，不是模型、训练、样本和指标全部相同的逐项复现。
+原论文[*Towards a Mechanistic Interpretation of Multi-Step Reasoning Capabilities of Language Models*](https://aclanthology.org/2023.emnlp-main.299/) 及其[官方代码](https://github.com/yifan-h/MechanisticProbe)；本复现实验数字以冻结的[结果汇总](RESULTS.md)和[完整结果 JSON](results/chat-control/)为准。
 
-## 1. 原论文摘要中文直译
-
-以下内容是 Hou 等人论文 [*Towards a Mechanistic Interpretation of Multi-Step Reasoning Capabilities of Language Models*](https://aclanthology.org/2023.emnlp-main.299/) 摘要的中文直译：
+## 1. 摘要
 
 > 近期工作已经表明，语言模型（LM）具有很强的多步（即程序性）推理能力。然而，目前尚不清楚，LM 完成这些任务时，是通过利用从预训练语料库中记住的答案来“作弊”，还是借助一种多步推理机制。在本文中，我们尝试通过探索 LM 在多步推理任务上的机制性解释来回答这一问题。具体而言，我们假设，LM 在其内部隐式嵌入了一棵类似于正确推理过程的推理树。我们通过提出一种新的探针方法（称为 MechanisticProbe）来检验这一假设，该方法从模型的注意力模式中恢复推理树。我们使用该探针分析两个语言模型：在合成任务（第 k 小元素）上的 GPT-2，以及在两个简单的基于语言的推理任务（ProofWriter 与 AI2 Reasoning Challenge）上的 LLaMA。我们表明，对于大多数样例，MechanisticProbe 能够从模型的注意力中检测出推理树的信息；这表明在许多情况下，语言模型的架构内部确实正在经历一个多步推理过程。
-
-原文的补充导读可参见 [alphaXiv 页面](https://www.alphaxiv.org/abs/2310.14491)，但下文涉及方法、设置和数字的陈述均以 ACL 论文正文、附录和原作者代码为准。
 
 ## 2. 原论文核心方法
 
