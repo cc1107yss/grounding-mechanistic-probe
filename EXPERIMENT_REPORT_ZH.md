@@ -1,4 +1,4 @@
-# 冻结 Qwen MechanisticProbe 完整实验报告
+# 冻结 Qwen MechanisticProbe 实验报告
 
 [English](EXPERIMENT_REPORT.md) | **中文**
 
