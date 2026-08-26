@@ -12,14 +12,14 @@
 
 ### 2.1 用金标准推理树表示多步推理
 
-给定语句集合 \(S=\{S_1,S_2,\ldots\}\) 和问题 \(Q\)，原论文把正确推理过程表示为推理树 \(G\)，并提出核心假设：如果模型确实以类似金标准的步骤进行推理，那么模型的注意力模式 \(A\) 中应当能够恢复出 \(G\)。该问题被写成 \(P(G\mid A)\)。这一形式化和三个任务的树结构示例见[论文第 2–3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)。
+给定语句集合 $S=\{S_1,S_2,\ldots\}$ 和问题 $Q$，原论文把正确推理过程表示为推理树 $G$，并提出核心假设：如果模型确实以类似金标准的步骤进行推理，那么模型的注意力模式 $A$ 中应当能够恢复出 $G$。该问题被写成 $P(G\mid A)$。这一形式化和三个任务的树结构示例见[论文第 2–3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)。
 
 ### 2.2 把庞大的注意力张量压缩为语句级特征
 
-完整注意力张量的规模为 \(L\times H\times |T|^2\)。为避免探针本身学习过强，原论文依次进行以下简化（见[论文第 3.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=3)）：
+完整注意力张量的规模为 $L\times H\times |T|^2$。为避免探针本身学习过强，原论文依次进行以下简化（见[论文第 3.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=3)）：
 
-1. 对因果语言模型，首先聚焦于用于预测下一 token 的最后一个输入 token 的注意力，将特征规模降为 \(L\times H\times |T|\)。
-2. 对所有注意力头取均值，将规模进一步降为 \(L\times |T|\)。
+1. 对因果语言模型，首先聚焦于用于预测下一 token 的最后一个输入 token 的注意力，将特征规模降为 $L\times H\times |T|$。
+2. 对所有注意力头取均值，将规模进一步降为 $L\times |T|$。
 3. 在 ProofWriter 和 ARC 上，把每条自然语言语句视为一个超节点：对语句内部 token 的注意力取均值，对问题 token 取最大值，从而为每层、每条语句得到一个标量。
 4. 对 LLaMA，原论文还在保留端任务性能的条件下剪除被认为冗余的层；ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，详见[附录 C.2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。
 
@@ -27,21 +27,21 @@
 
 原论文将树恢复分解为：
 
-\[
+$$
 P(G\mid A)=P(V\mid A)\,P(G\mid V,A),
-\]
+$$
 
-其中 \(V\) 是金标准推理树中的节点集合（见[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
+其中 $V$ 是金标准推理树中的节点集合（见[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
 
-- **SP1：有用语句选择。** 二分类判断输入语句是否属于 \(V\)，即它是否出现在金标准证明中。
-- **SP2：推理树高度。** 在已知有用语句集合 \(V\) 的条件下，分类每个有用语句在推理树中的高度，从而恢复树的步骤结构。
+- **SP1：有用语句选择。** 二分类判断输入语句是否属于 $V$，即它是否出现在金标准证明中。
+- **SP2：推理树高度。** 在已知有用语句集合 $V$ 的条件下，分类每个有用语句在推理树中的高度，从而恢复树的步骤结构。
 
 原论文使用非参数 kNN 探针，以 macro-F1 衡量两项分类任务，并以同架构随机初始化模型的注意力作为控制。论文主表报告的不是 raw macro-F1，而是相对随机基线归一化后的分数（见[论文公式 1–2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=5)）：
 
-\[
+$$
 SP1=\frac{F1(V\mid A)-F1(V\mid A_{rand})}{1-F1(V\mid A_{rand})},\qquad
 SP2=\frac{F1(G\mid V,A)-F1(G\mid V,A_{rand})}{1-F1(G\mid V,A_{rand})}.
-\]
+$$
 
 原作者的代码入口、数据处理和分析脚本见 [MechanisticProbe 官方仓库](https://github.com/yifan-h/MechanisticProbe)。
 
