@@ -10,18 +10,18 @@
 
 ## 2. 原论文核心方法
 
-### 2.1 用金标准推理树表示多步推理
+### 2.1 用标准推理树表示多步推理
 
-给定语句集合 $S=\{S_1,S_2,\ldots\}$ 和问题 $Q$，原论文把正确推理过程表示为推理树 $G$，并提出核心假设：如果模型确实以类似金标准的步骤进行推理，那么模型的注意力模式 $A$ 中应当能够恢复出 $G$。该问题被写成 $P(G\mid A)$。这一形式化和三个任务的树结构示例见[论文第 2–3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)。
+给定语句集合 $S=\{S_1,S_2,\ldots\}$ 和问题 $Q$，原论文把正确推理过程表示为推理树 $G$，并提出核心假设：如果模型确实以类似标准的步骤进行推理，那么模型的注意力模式 $A$ 中应当能够恢复出 $G$。该问题被写成 $P(G\mid A)$。[论文第 2–3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)。
 
 ### 2.2 把庞大的注意力张量压缩为语句级特征
 
-完整注意力张量的规模为 $L\times H\times |T|^2$。为避免探针本身学习过强，原论文依次进行以下简化（见[论文第 3.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=3)）：
+完整注意力张量的规模为 $L\times H\times |T|^2$。为避免探针本身学习过强，原论文依次进行以下简化（[论文第 3.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=3)）：
 
 1. 对因果语言模型，首先聚焦于用于预测下一 token 的最后一个输入 token 的注意力，将特征规模降为 $L\times H\times |T|$。
 2. 对所有注意力头取均值，将规模进一步降为 $L\times |T|$。
 3. 在 ProofWriter 和 ARC 上，把每条自然语言语句视为一个超节点：对语句内部 token 的注意力取均值，对问题 token 取最大值，从而为每层、每条语句得到一个标量。
-4. 对 LLaMA，原论文还在保留端任务性能的条件下剪除被认为冗余的层；ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，详见[附录 C.2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。
+4. 对 LLaMA，原论文还在保留端任务性能的条件下剪除被认为冗余的层；ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，[附录 C.2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。
 
 ### 2.3 将推理树恢复拆成两个探针任务
 
@@ -31,19 +31,19 @@ $$
 P(G\mid A)=P(V\mid A)\,P(G\mid V,A),
 $$
 
-其中 $V$ 是金标准推理树中的节点集合（见[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
+其中 $V$ 是标准推理树中的节点集合（[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
 
-- **SP1：有用语句选择。** 二分类判断输入语句是否属于 $V$，即它是否出现在金标准证明中。
+- **SP1：有用语句选择。** 二分类判断输入语句是否属于 $V$，即它是否出现在标准证明中。
 - **SP2：推理树高度。** 在已知有用语句集合 $V$ 的条件下，分类每个有用语句在推理树中的高度，从而恢复树的步骤结构。
 
-原论文使用非参数 kNN 探针，以 macro-F1 衡量两项分类任务，并以同架构随机初始化模型的注意力作为控制。论文主表报告的不是 raw macro-F1，而是相对随机基线归一化后的分数（见[论文公式 1–2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=5)）：
+原论文使用非参数 kNN 探针，以 macro-F1 衡量两项分类任务，并以同架构随机初始化模型的注意力作为控制。论文主表报告的不是 raw macro-F1，而是相对随机基线归一化后的分数（[论文公式 1–2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=5)）：
 
 $$
 SP1=\frac{F1(V\mid A)-F1(V\mid A_{rand})}{1-F1(V\mid A_{rand})},\qquad
 SP2=\frac{F1(G\mid V,A)-F1(G\mid V,A_{rand})}{1-F1(G\mid V,A_{rand})}.
 $$
 
-原作者的代码入口、数据处理和分析脚本见 [MechanisticProbe 官方仓库](https://github.com/yifan-h/MechanisticProbe)。
+[MechanisticProbe 官方仓库](https://github.com/yifan-h/MechanisticProbe)。
 
 ## 3. 原论文的主要实验和核心结论
 
@@ -51,9 +51,9 @@ $$
 
 | 原论文任务 | 模型与设置 | 主要分析 |
 | --- | --- | --- |
-| 第 k 小元素 | GPT-2 与针对每个 k 单独微调的 GPT-2FT；默认从 16 个数中预测第 k 小值 | 注意力可视化、SP1/SP2、逐层分析，以及按注意力头熵进行剪枝的因果验证；[官方 probing 脚本](https://github.com/yifan-h/MechanisticProbe/blob/main/run_probing_gpt2.sh)、[官方 causal 脚本](https://github.com/yifan-h/MechanisticProbe/blob/main/run_causal_gpt2.sh) |
-| ProofWriter | LLaMA-7B 4-shot，以及用 ProofWriter 监督信号部分微调注意力参数的 LLaMAFT | 端任务准确率、SP1/SP2、逐层分析、探针分数与准确率/抗噪性的相关性；[官方运行脚本](https://github.com/yifan-h/MechanisticProbe/blob/main/run_probing_proofwriter.sh) |
-| ARC | LLaMA-7B 4-shot；因标注样本较少，不做微调模型分析 | SP1/SP2 与逐层分析；[官方运行脚本](https://github.com/yifan-h/MechanisticProbe/blob/main/run_probing_arc.sh) |
+| 第 k 小元素 | GPT-2 与针对每个 k 单独微调的 GPT-2FT；默认从 16 个数中预测第 k 小值 | 注意力可视化、SP1/SP2、逐层分析，以及按注意力头熵进行剪枝的因果验证；|
+| ProofWriter | LLaMA-7B 4-shot，以及用 ProofWriter 监督信号部分微调注意力参数的 LLaMAFT | 端任务准确率、SP1/SP2、逐层分析、探针分数与准确率/抗噪性的相关性；|
+| ARC | LLaMA-7B 4-shot；因标注样本较少，不做微调模型分析 | SP1/SP2 与逐层分析；|
 
 任务、模型和训练设置来自[论文第 2.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)及[附录 C.1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=16)。ProofWriter 去除了循环、多证明标注和错误深度样例，并仅保留证明深度不超过 1 的样例，以规避深层证明树的结构歧义；清洗规则与数据量见[附录 C.3–C.4](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。论文为效率从测试集随机抽取 1,024 个样例用于 LLaMA 探针分析。
 
