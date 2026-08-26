@@ -21,7 +21,7 @@
 1. 对因果语言模型，首先聚焦于用于预测下一 token 的最后一个输入 token 的注意力，将特征规模降为 $L\times H\times |T|$。
 2. 对所有注意力头取均值，将规模进一步降为 $L\times |T|$。
 3. 在 ProofWriter 和 ARC 上，把每条自然语言语句视为一个超节点：对语句内部 token 的注意力取均值，对问题 token 取最大值，从而为每层、每条语句得到一个标量。
-4. 对 LLaMA，原论文还在保留端任务性能的条件下剪除被认为冗余的层；ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，[附录 C.2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。
+4. 对 LLaMA，作者保留完整模型的任务性能，然后只剪掉 probing 输入中的某些 attention layer 特征，观察剩余层是否仍足以恢复推理信息。ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，[附录 C.2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。GPT-2 的 head pruning（被剪掉的 head 输出被置为 0）
 
 ### 2.3 将推理树恢复拆成两个探针任务
 
