@@ -31,19 +31,18 @@ $$
 P(G\mid A)=P(V\mid A)\,P(G\mid V,A),
 $$
 
-其中 $V$ 是标准推理树中的节点集合（[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
+其中 $V$ 是标准推理树中的节点集合（所有真正参与推理的节点集合）（[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
 
 - **SP1：有用语句选择。** 二分类判断输入语句是否属于 $V$，即它是否出现在标准证明中。
 - **SP2：推理树高度。** 在已知有用语句集合 $V$ 的条件下，分类每个有用语句在推理树中的高度，从而恢复树的步骤结构。
 
-原论文使用非参数 kNN 探针，以 macro-F1 衡量两项分类任务，并以同架构随机初始化模型的注意力作为控制。论文主表报告的不是 raw macro-F1，而是相对随机基线归一化后的分数（[论文公式 1–2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=5)）：
+原论文使用非参数 kNN 探针，以 macro-F1 衡量两项分类任务，并以同架构随机初始化模型的注意力作为控制。论文主表报告的不是 raw macro-F1，而是相对随机基线归一化后的分数（真实模型的 attention 比随机模型的 attention 多提供了多少推理信息，v推理树中的有用节点集合，g- 完整的标准推理树
+\(V\)）（[论文公式 1–2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=5)）：
 
 $$
 SP1=\frac{F1(V\mid A)-F1(V\mid A_{rand})}{1-F1(V\mid A_{rand})},\qquad
 SP2=\frac{F1(G\mid V,A)-F1(G\mid V,A_{rand})}{1-F1(G\mid V,A_{rand})}.
 $$
-
-[MechanisticProbe 官方仓库](https://github.com/yifan-h/MechanisticProbe)。
 
 ## 3. 原论文的主要实验和核心结论
 
