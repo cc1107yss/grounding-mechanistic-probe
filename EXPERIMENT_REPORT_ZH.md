@@ -50,15 +50,21 @@ $$
 
 | 原论文任务 | 模型与设置 | 主要分析 |
 | --- | --- | --- |
-| 第 k 小元素 | GPT-2 与针对每个 k 单独微调的 GPT-2FT；默认从 16 个数中预测第 k 小值 | 注意力可视化、SP1/SP2、逐层分析，以及按注意力头熵进行剪枝的因果验证；|
+| 第 k 小元素 | GPT-2 与针对每个 k 单独微调的 GPT-2FT；默认从 16 个数中预测第 k 小值 | 注意力可视化（把模型的 attention 权重画出来）、SP1/SP2、逐层分析，以及按注意力头熵进行剪枝的因果验证；|
 | ProofWriter | LLaMA-7B 4-shot，以及用 ProofWriter 监督信号部分微调注意力参数的 LLaMAFT | 端任务准确率、SP1/SP2、逐层分析、探针分数与准确率/抗噪性的相关性；|
 | ARC | LLaMA-7B 4-shot；因标注样本较少，不做微调模型分析 | SP1/SP2 与逐层分析；|
+
+注意力头熵：衡量某个 attention head 的关注模式有多集中、是否稳定。如果把这个 head 屏蔽后，模型准确率明显下降，才说明：这个 head 被模型实际计算过程使用了
+
+微调：原论文明确报告了 attention-only fine-tuning 的总体设置和超参数，但没有完整公开 LLaMAFT 的训练实现细节。微调是为了让模型具备稳定的任务能力，并检验“任务能力提升是否伴随着内部推理结构的形成或变清晰”。
+
+抗噪性：作者研究了 probing 分数与模型准确率、抗噪性的关系。结果发现，推理层级分数 \(S_{P2}\) 越高，模型越容易答对，并且越不容易受到输入噪声影响；相比之下，有用节点识别分数 \(S_{P1}\) 与准确率的相关性较弱。这说明，模型能否正确组织推理步骤，比单纯找到相关事实更重要。但该结果只是相关性证据，不能单独证明推理结构对模型输出具有因果作用。
 
 任务、模型和训练设置来自[论文第 2.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)及[附录 C.1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=16)。ProofWriter 去除了循环、多证明标注和错误深度样例，并仅保留证明深度不超过 1 的样例，以规避深层证明树的结构歧义；清洗规则与数据量见[附录 C.3–C.4](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。论文为效率从测试集随机抽取 1,024 个样例用于 LLaMA 探针分析。
 
 ### 3.2 原论文主结果
 
-下表转录原论文 [Table 2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=6) 的百分数。这里的 SP1/SP2 是相对随机模型归一化后的分数，而不是 raw macro-F1。
+原论文 [Table 2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=6) 。这里的 SP1/SP2 是相对随机模型归一化后的分数，而不是 raw macro-F1。
 
 | 数据 / 深度 | 语句数 | 端任务准确率：LLaMA / LLaMAFT | SP1：LLaMA / LLaMAFT | SP2：LLaMA / LLaMAFT |
 | --- | ---: | ---: | ---: | ---: |
