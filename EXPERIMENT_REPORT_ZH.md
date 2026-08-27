@@ -84,7 +84,7 @@ $$
 - 在 ProofWriter 中，无关语句增多时，4-shot LLaMA 的 SP1 明显下降；SP2 仍保持较高，LLaMAFT 在 depth-1 各桶中的 SP1/SP2 总体高于 4-shot LLaMA。需要注意，depth-0 的 SP1 是明确例外：49.08 低于 57.21。
 - 在 ARC 中，SP1 很高，SP2 中等；作者据此认为注意力中包含大量有用语句信息和一定的步骤信息。
 - 逐层结果显示，ProofWriter 的 SP1 很早达到平台，而 SP2 持续增长到中间层；作者将其解释为先选择有用语句、再形成推理步骤。对应曲线见[论文 Figure 7–8](https://aclanthology.org/2023.emnlp-main.299.pdf#page=7)。
-- 在 ProofWriter 上，作者重复 2,048 次子采样实验，报告端任务准确率与 SP1、SP2 的 Pearson 相关系数分别为 27.42% 和 71.13%；对一条无用语句加噪后，SP2 较高的样例也更稳健，见[论文 Table 3 与 Figure 10](https://aclanthology.org/2023.emnlp-main.299.pdf#page=8)。相关性本身不是因果性。
+- 在 ProofWriter 上，作者重复 2,048 次子采样实验，报告端任务准确率与 SP1、SP2 的 Pearson 相关系数（衡量两个变量是否“线性相关”的指标）分别为 27.42% 和 71.13%；对一条无用语句加噪（把它改写成带否定的形式）后，SP2 较高的样例也更稳健，见[论文 Table 3 与 Figure 10](https://aclanthology.org/2023.emnlp-main.299.pdf#page=8)。相关性本身不是因果性。
 - 原论文的因果验证是对**第 k 小元素任务上的 GPT-2FT**进行注意力头剪枝：按与数值大小相关的注意力头指标剪枝会显著损害准确率，而位置相关头更冗余，见[论文第 5 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=8)。论文没有在 ProofWriter 的 LLaMA 上完成同等的头剪枝因果实验。
 
 原作者最终将“多数样例的注意力中可以检测到金标准推理树信息”解释为语言模型可能在架构内部进行机制性的多步推理（见[论文结论](https://aclanthology.org/2023.emnlp-main.299.pdf#page=9)）。更严格地说，ProofWriter/ARC 部分主要提供可解码性、逐层模式和相关性证据；其中最直接的剪枝因果证据来自 GPT-2FT 合成任务。
