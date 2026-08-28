@@ -93,27 +93,29 @@ $$
 
 ### 4.1 逐项对比
 
-| 维度 | Hou 等人原论文 | 本复现实验 | 可比性判断 |
+| 维度 | Hou 等人原论文 | 本复现实验 | 判断 |
 | --- | --- | --- | --- |
-| 研究范围 | 第 k 小元素、ProofWriter、ARC 三项任务 | 仅 ProofWriter-CWA，作为 grounding–reasoning 项目的“推理半边” | 只复现原方法在 ProofWriter 上的核心探针，不覆盖原论文全部实验 |
-| 模型 | GPT-2/GPT-2FT；LLaMA-7B 4-shot；ProofWriter 监督微调的 LLaMAFT | 冻结的 [Qwen2.5-7B](https://huggingface.co/Qwen/Qwen2.5-7B)、[Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) 和同架构随机权重模型 | Qwen Instruct 是通用指令模型，**不等同于**原论文的 ProofWriter 专项 LLaMAFT |
-| 语言模型训练 | GPT-2FT 和 LLaMAFT 均进行任务训练；LLaMAFT 部分微调注意力参数 | 不微调任何语言模型；仅训练轻量探针 | Base–Instruct 不是对 LLaMA–LLaMAFT 的逐项复现 |
-| ProofWriter 数据 | 原作者清洗并重分 depth；LLaMA 分析随机抽取 1,024 个测试样例 | 直接使用[原作者发布的 processed CWA](https://huggingface.co/datasets/yyyyifan/MechanisticProbe_ProofWriter_ARC)，冻结 6,277 个测试问题 | 数据来源与标签语义一致，样本集合和规模不同 |
+| 研究范围 | 第 k 小元素、ProofWriter、ARC 三项任务 | 仅 ProofWriter-CWA，作为 grounding–reasoning 项目的“推理半边” |  |
+| 模型 | GPT-2/GPT-2FT；LLaMA-7B 4-shot；ProofWriter 监督微调的 LLaMAFT | 冻结的 [Qwen2.5-7B](https://huggingface.co/Qwen/Qwen2.5-7B)、[Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) 和同架构随机权重模型 |  |
+| 语言模型训练 | GPT-2FT 和 LLaMAFT 均进行任务训练；LLaMAFT 部分微调注意力参数 | 不微调任何语言模型；仅训练轻量探针 |  |
+| ProofWriter 数据 | 原作者清洗并重分 depth；LLaMA 分析随机抽取 1,024 个测试样例 | 直接使用[原作者发布的 processed CWA](https://huggingface.co/datasets/yyyyifan/MechanisticProbe_ProofWriter_ARC)，冻结 6,277 个测试问题 | 一致 |
 | 深度 | ProofWriter 仅 depth 0/1 | 仅 depth 0/1；SP2 只使用 depth-1 的金标准有用语句 | 一致 |
 | ICL prompt | 选择表现最好的 4-shot；简单 raw completion 模板 | 主实验也使用四个固定 raw completion demos；另补 Instruct 原生多轮 chat 对照 | raw 条件接近原模板；chat 是新增控制 |
-| 注意力池化 | 语句 token 均值 → 问题 token 最大值 → 注意力头均值 | 相同顺序，见[特征抽取实现](src/mechanistic_probe/extract.py) | 核心特征构造一致 |
-| 层处理 | 在开发集约束下剪层；ProofWriter 4-shot LLaMA 保留 19/32 层 | 保留 Qwen 的全部 28 层并绘制 layer-prefix 曲线 | 不同；本实验避免基于开发集选择层，但不复现原剪层步骤 |
-| 探针 | kNN；主表报告随机归一化 SP1/SP2 | 8 邻居、距离加权、Manhattan kNN，并增加类别平衡逻辑回归；报告 raw macro-F1 | 只能用原论文附录 raw macro-F1 作描述性数值对照 |
-| 切分 | 原论文报告抽样分析及其 kNN 结果 | “paper-style”为语句级 StratifiedKFold；主要结果为按完整 theory 隔离的 GroupKFold，均为五折 | 本实验切分更明确，但不是原论文切分的逐行复刻；实现见[探针代码](src/mechanistic_probe/probe.py) |
-| 不确定性 | 主表未报告置信区间 | 1,000 次 cluster bootstrap；严格切分以完整 theory 为单元 | 本实验新增 |
-| 端任务评分 | 下一 token 分类形式 | 比较 `True`/`False` 候选的平均 token log-probability，见[候选评分代码](src/mechanistic_probe/extract.py) | 均为固定候选评分，但 tokenizer、prompt 和模型不同，准确率不可直接横比 |
-| 因果实验 | GPT-2FT 合成任务上做注意力头剪枝 | 未做 activation patching、attention ablation 或 head pruning | 本复现实验只能说明可解码性，不能声称因果使用 |
-
-本实验的完整 formal 流水线见 [`run_formal.sh`](scripts/run_formal.sh)，chat 对照流水线见 [`run_chat_control.sh`](scripts/run_chat_control.sh)。
+| 注意力池化 | 语句 token 均值 → 问题 token 最大值 → 注意力头均值 | 相同顺序，[特征抽取实现](src/mechanistic_probe/extract.py) | 一致 |
+| 层处理 | 在开发集约束下剪层；ProofWriter 4-shot LLaMA 保留 19/32 层 | 保留 Qwen 的全部 28 层并绘制 layer-prefix 曲线 | 未复现剪层步骤 |
+| 探针 | kNN；主表报告随机归一化 SP1/SP2 | 8 邻居、距离加权、Manhattan kNN，并增加类别平衡逻辑回归；报告 raw macro-F1 | 用原论文附录 raw macro-F1 作数值对照 |
+| 切分 | 原论文报告抽样分析及其 kNN 结果 | “paper-style”为语句级 StratifiedKFold；主要结果为按完整 theory 隔离的 GroupKFold，均为五折 | 切分更明确[探针代码](src/mechanistic_probe/probe.py) |
+| 不确定性 | 主表未报告置信区间 | 1,000 次 cluster bootstrap；严格切分以完整 theory 为单元 | 新增 |
+| 端任务评分 | 下一 token 分类形式 | 比较 `True`/`False` 候选的平均 token log-probability，见[候选评分代码](src/mechanistic_probe/extract.py) | tokenizer、prompt 和模型不同，准确率不可直接横比 |
+| 因果实验 | GPT-2FT 合成任务上做注意力头剪枝 | 未做 activation patching、attention ablation 或 head pruning | 可解码性，暂时没有因果使用 |
 
 ### 4.2 唯一可放在同一量纲下的跨研究数值对照
 
-原论文主表是随机归一化分数，本实验报告 raw macro-F1，因此二者不能直接作差。下表改用原论文[附录 Table 8 的未归一化 SP2 kNN macro-F1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=18)，并与本实验 paper-style 分桶 raw macro-F1 对照；单位均为百分比。
+原论文[附录 Table 8 的未归一化 SP2 kNN macro-F1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=18)，与本实验 paper-style 分桶 raw macro-F1 对照；单位均为百分比。
+
+F1 是综合衡量分类效果的指标，计算准确率（Precision）和召回率（Recall）的调和平均
+
+Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平均值，用来衡量探针分类性能。
 
 | 语句数 | 原论文 LLaMA 4-shot | 原论文 LLaMAFT | Qwen Base raw | Qwen Instruct raw | Qwen Instruct chat |
 | ---: | ---: | ---: | ---: | ---: | ---: |
