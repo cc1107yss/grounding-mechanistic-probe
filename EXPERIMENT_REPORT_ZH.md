@@ -109,7 +109,7 @@ $$
 | 端任务评分 | 下一 token 分类形式 | 比较 `True`/`False` 候选的平均 token log-probability，见[候选评分代码](src/mechanistic_probe/extract.py) | tokenizer、prompt 和模型不同，准确率不可直接横比 |
 | 因果实验 | GPT-2FT 合成任务上做注意力头剪枝 | 未做 activation patching、attention ablation 或 head pruning | 可解码性，暂时没有因果使用 |
 
-### 4.2 唯一可放在同一量纲下的跨研究数值对照
+### 4.2 可放在同一量纲下的跨研究数值对照
 
 原论文[附录 Table 8 的未归一化 SP2 kNN macro-F1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=18)，与本实验 paper-style 分桶 raw macro-F1 对照；单位均为百分比。
 
@@ -133,11 +133,11 @@ Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平
 
 ### 5.1 为什么只复现 ProofWriter
 
-本项目的总问题是能否把符号 grounding 与符号 reasoning 分离。本轮先建立可操作的**推理侧测量**：SP1 判断证明相关性，SP2 判断证明步骤高度。ProofWriter 同时提供自然语言事实/规则、真假答案和金标准证明树，因而可以在不微调语言模型的前提下直接构造这两个监督标签。第 k 小元素任务主要服务于原论文的合成机制与头剪枝验证；ARC 的原始数据没有证明树，原论文依赖额外人工标注且样本较少。基于本轮“冻结开源模型、单张 24 GB RTX 3090、不做语言模型微调”的目标，代码将范围明确限定为 ProofWriter reasoning-side milestone，见[项目范围说明](README.md#scope)与[数据准备实现](src/mechanistic_probe/prepare.py)。因此，这不是对原论文三个数据集的完整复现。
+本项目的总问题是能否把符号 grounding 与符号 reasoning 分离。本轮先建立**推理侧测量**：SP1 判断证明相关性，SP2 判断证明步骤高度。ProofWriter 同时提供自然语言事实/规则、真假答案和金标准证明树，因而可以在不微调语言模型的前提下直接构造这两个监督标签。第 k 小元素任务主要服务于原论文的合成机制与头剪枝验证；ARC 的原始数据没有证明树，原论文依赖额外人工标注且样本较少。[项目范围说明](README.md#scope)与[数据准备实现](src/mechanistic_probe/prepare.py)。
 
 ### 5.2 冻结样本、固定 demonstrations 与分桶
 
-[`run_formal.sh`](scripts/run_formal.sh) 使用 seed 42，从原作者 processed CWA 的 test split 按语句数分桶，每桶最多选择 1,024 个问题；实际冻结样本如下：
+使用 seed 42，从原作者 processed CWA 的 test split 按语句数分桶，每桶最多选择 1,024 个问题；实际冻结样本如下：
 
 | 语句数 | 2 | 4 | 8 | 12 | 16 | 20 | 24 | 合计 |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
