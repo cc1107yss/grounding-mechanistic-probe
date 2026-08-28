@@ -131,7 +131,7 @@ depth-1：需要应用一次规则
 
 这些数字支持一个稳健的共同定性观察：两项研究都能从注意力特征中较好地解码 depth-1 有用语句的高度。原论文 Table 8 的 ProofWriter 分桶 SP1 只对应 depth-1，而本实验分桶 SP1 汇总包含 depth-0 与 depth-1。
 
-## 5. 本复现实验重要设计及其原因
+## 5. 本复现实验设计
 
 ### 5.1 为什么只复现 ProofWriter
 
@@ -147,41 +147,24 @@ depth-1：需要应用一次规则
 
 这产生 85,820 条语句级记录。分桶的目的是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。[`_select_demos`](src/mechanistic_probe/prepare.py)。
 
-### 5.3 为什么不微调语言模型，并加入随机权重模型
-
-本轮目标是分析开源 checkpoint 中已经存在的表征，而不是通过 ProofWriter 训练创造该表征。因此 Base、Instruct 和 chat 条件的语言模型参数全部冻结；仅 kNN/逻辑回归探针拟合标签。随机模型复用 Qwen Base 的架构与 tokenizer，以 seed 42 初始化（用固定的随机数种子 42 生成随机模型参数或随机抽样结果。）用于判断探针是否只利用了架构、标签分布或数据规律。四个条件在 24 GB RTX 3090 上逐个加载；该 GPU 支持 BF16，实际 chat 元数据也记录为 `bfloat16`，见[产物元数据](results/chat-control/artifact-metadata/features-instruct-chat-formal.meta.json)。模型使用 eager attention、最大长度 2,048；模型加载、精度选择和冻结逻辑见 [`_load_model`](src/mechanistic_probe/extract.py)，正式运行顺序见 [`run_formal.sh`](scripts/run_formal.sh)。单个随机种子只是 sanity control，不估计随机初始化方差。
-
-### 5.4 为什么同时保留 raw prompt 和原生 chat control
+### 5.3 同时保留 raw prompt 和原生 chat control
 
 主实验让 Base 与 Instruct 接收完全相同的 raw completion prompt，便于控制输入文本；但 raw prompt 不是 Instruct checkpoint 的原生使用方式。为区分 checkpoint 差异和 prompt-format 效应，本实验只补跑一次 Instruct native chat：调用官方 `apply_chat_template`，保留默认 system message，把相同四个 demos 编成四组 user→assistant 消息，最终问题作为 user 消息，并设置 `add_generation_prompt=True`。raw 候选是带前导空格的 `" True"`/`" False"`，chat 候选是无前导空格的 `"True"`/`"False"`。渲染、span 对齐和候选定义见[实现](src/mechanistic_probe/extract.py)及[回归测试](tests/test_prompt_rendering.py)。
 
 chat 流水线没有重新抽取 Base、raw Instruct 或 random。预检记录并保护旧样本和特征 SHA-256，运行后再次验证哈希、行顺序和金标签，见[预检基线](results/chat-control/chat-control-baseline.json)、[运行后验证](results/chat-control/chat-control-validation.json)和[验证代码](src/mechanistic_probe/validate_chat_control.py)。
 
-### 5.5 为什么增加严格切分、线性探针和 bootstrap
+### 5.4 增加严格切分、线性探针和 bootstrap
 
 - **严格 GroupKFold：** 同一 theory 会产生多条语句级记录；若这些语句跨训练/测试折，探针可能利用共享上下文。主要结果按完整 `theory_group` 隔离，paper-style 语句级分层五折仅用于延续原探针风格。两种切分见[代码](src/mechanistic_probe/probe.py)。
 - **kNN + Linear：** kNN 对局部邻域几何敏感，逻辑回归检验线性可分性。两者方向若不一致，就不能把表征压缩成“更好/更差”的单一结论。
-- **全部 28 层：** 本实验不根据端任务开发集剪层，而报告 layer-prefix 曲线，避免先选择“有用层”再探测同一结构；代价是与原论文的剪层 LLaMA 特征不完全相同。
-- **1,000 次 cluster bootstrap：** 置信区间和成对差值在 paper-style 下以问题、严格切分下以完整 theory 为抽样单元；实现见[正式收尾脚本](scripts/finalize_formal.sh)和[探针 bootstrap 代码](src/mechanistic_probe/probe.py)。
+- **全部 28 层：** 本实验不根据端任务开发集剪层，而报告 layer-prefix 曲线，未做先选择“有用层”再探测同一结构；与原论文的剪层 LLaMA 特征不完全相同。
+- **1,000 次 cluster bootstrap：** 置信区间和成对差值在 paper-style 下以问题、严格切分下以完整 theory 为抽样单元；[正式收尾脚本](scripts/finalize_formal.sh)和[探针 bootstrap 代码](src/mechanistic_probe/probe.py)。
 
 ## 6. 本复现实验结果
 
-### 6.1 完整性与运行验收
+### 6.1 严格切分的总体结果
 
-| 检查项 | 结果 | 证据 |
-| --- | --- | --- |
-| 冻结问题 / 语句级记录 | 6,277 / 85,820 | [预检基线](results/chat-control/chat-control-baseline.json) |
-| 四个固定 ICL demos | 通过 | [预检基线](results/chat-control/chat-control-baseline.json) |
-| chat 全数据最大长度 | 482 tokens，低于 2,048 | [预检基线](results/chat-control/chat-control-baseline.json) |
-| chat skipped | 0 | [运行后验证](results/chat-control/chat-control-validation.json) |
-| 四条件行与金标签对齐 | 通过 | [运行后验证](results/chat-control/chat-control-validation.json) |
-| formal 样本和 Base/raw-Instruct/random 旧产物哈希 | 运行前后不变 | [保护哈希](results/chat-control/chat-control-baseline.json)与[运行后验证](results/chat-control/chat-control-validation.json) |
-
-三个 formal `.skipped.json` 的冻结 SHA-256 均为 `4f53cda1…f2054a`，即空 JSON 数组 `[]` 的哈希；chat 条件的验证文件则直接记录 `skipped_examples: 0`。因此四个条件均覆盖同一批 85,820 条语句记录。
-
-### 6.2 严格切分的总体结果
-
-为显示切分影响，先列出 paper-style 与严格切分的 kNN 点估计。paper-style 是语句级 StratifiedKFold；strict 是完整 theory 隔离的 GroupKFold。完整 paper-style 置信区间、Linear 结果和分桶结果见[正式结果汇总](RESULTS.md)与[chat paper JSON](results/chat-control/probe-chat-control-paper.json)。
+为显示切分影响，先列出 paper-style 与严格切分的 kNN 点估计。paper-style 是语句级 StratifiedKFold；strict 是完整 theory 隔离的 GroupKFold。[正式结果汇总](RESULTS.md)与[chat paper JSON](results/chat-control/probe-chat-control-paper.json)。
 
 | 条件 | paper SP1 | paper SP2 | strict SP1 | strict SP2 |
 | --- | ---: | ---: | ---: | ---: |
@@ -190,7 +173,7 @@ chat 流水线没有重新抽取 Base、raw Instruct 或 random。预检记录�
 | Instruct（native chat） | 0.7344 | 0.8945 | 0.7155 | 0.8685 |
 | 随机权重（raw） | 0.5130 | 0.6299 | 0.4980 | 0.5992 |
 
-严格切分下的 kNN 点估计全部低于对应 paper-style 值，说明把同一 theory 的语句隔离到同一折是实质性控制。以下将严格切分作为主要结果。方括号是 1,000 次 theory-cluster bootstrap 的 95% 置信区间；所有数字可由[正式结果汇总](RESULTS.md)和[chat strict JSON](results/chat-control/probe-chat-control-strict.json)复核。
+严格切分下的 kNN 点估计全部低于对应 paper-style 值，说明把同一 theory 的语句隔离到同一折是实质性控制。以下将严格切分作为主要结果。方括号是 1,000 次 theory-cluster bootstrap（以完整 theory 为单位进行 1,000 次有放回重采样，用来估计结果的 95% 置信区间。） 的 95% 置信区间
 
 | 条件 | SP1 kNN | SP1 Linear | SP2 kNN | SP2 Linear | 端任务准确率 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -203,7 +186,7 @@ SP1 使用全部 85,820 条语句；SP2 仅使用 depth-1 证明中的 5,614 条
 
 ### 6.3 Base 与 Instruct 的成对差异
 
-正值表示第一项更高。下表均为严格切分、1,000 次配对 theory-cluster bootstrap；完整数字见[结果汇总](RESULTS.md)和[chat 对照 JSON](results/chat-control/probe-chat-control-strict.json)。
+正值表示第一项更高。下表均为严格切分、1,000 次配对 theory-cluster bootstrap
 
 | 比较 | 任务 | 探针 | macro-F1 差值 | 95% CI |
 | --- | --- | --- | ---: | ---: |
