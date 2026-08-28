@@ -23,3 +23,5 @@ results/*
 # Local environment files
 .env
 .DS_Store
+
+tmp/
