@@ -117,6 +117,8 @@ F1 是综合衡量分类效果的指标，计算准确率（Precision）和召�
 
 Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平均值，用来衡量探针分类性能。
 
+depth-1：需要应用一次规则
+
 | 语句数 | 原论文 LLaMA 4-shot | 原论文 LLaMAFT | Qwen Base raw | Qwen Instruct raw | Qwen Instruct chat |
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2 | 100.00 | 100.00 | 97.22 | 97.22 | 97.22 |
@@ -127,7 +129,7 @@ Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平
 | 20 | 89.74 | 96.98 | 82.74 | 83.30 | 83.95 |
 | 24 | 90.51 | 97.31 | 86.62 | 84.12 | 84.40 |
 
-这些数字只支持一个稳健的共同定性观察：两项研究都能从注意力特征中较好地解码 depth-1 有用语句的高度。它们不是严格的模型排名，因为 checkpoint、训练历史、样本、层选择和交叉验证实现均不同。本文不制作 SP1 跨研究数值表：原论文 Table 8 的 ProofWriter 分桶 SP1 只对应 depth-1，而本实验公开的分桶 SP1 汇总包含 depth-0 与 depth-1，直接并列会混淆样本定义。
+这些数字支持一个稳健的共同定性观察：两项研究都能从注意力特征中较好地解码 depth-1 有用语句的高度。原论文 Table 8 的 ProofWriter 分桶 SP1 只对应 depth-1，而本实验分桶 SP1 汇总包含 depth-0 与 depth-1。
 
 ## 5. 本复现实验重要设计及其原因
 
@@ -137,17 +139,17 @@ Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平
 
 ### 5.2 冻结样本、固定 demonstrations 与分桶
 
-使用 seed 42，从原作者 processed CWA 的 test split 按语句数分桶，每桶最多选择 1,024 个问题；实际冻结样本如下：
+使用 seed 42，从原作者 processed CWA 的 test split 按语句数分桶，每桶最多选择 1,024 个问题；实际冻结样本如下（使用原作者清洗、重划证明深度并去除循环、多证明和错误标注样本后的 ProofWriter-CWA 数据，再进一步筛选 depth-0/1 样本并按固定规则抽样）：
 
 | 语句数 | 2 | 4 | 8 | 12 | 16 | 20 | 24 | 合计 |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 问题数 | 154 | 1,024 | 1,024 | 1,024 | 1,024 | 1,024 | 1,003 | 6,277 |
 
-这产生 85,820 条语句级记录；实际桶计数也记录在[strict 结果 JSON 的 `task_accuracy.by_bucket`](results/chat-control/probe-chat-control-strict.json)中。分桶的目的不是复刻原论文的 1,024 总样本，而是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。选择逻辑见 [`_select_demos`](src/mechanistic_probe/prepare.py)。
+这产生 85,820 条语句级记录。分桶的目的是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。[`_select_demos`](src/mechanistic_probe/prepare.py)。
 
 ### 5.3 为什么不微调语言模型，并加入随机权重模型
 
-本轮目标是分析开源 checkpoint 中已经存在的表征，而不是通过 ProofWriter 训练创造该表征。因此 Base、Instruct 和 chat 条件的语言模型参数全部冻结；仅 kNN/逻辑回归探针拟合标签。随机模型复用 Qwen Base 的架构与 tokenizer，以 seed 42 初始化，用于判断探针是否只利用了架构、标签分布或数据规律。四个条件在 24 GB RTX 3090 上逐个加载；该 GPU 支持 BF16，实际 chat 元数据也记录为 `bfloat16`，见[产物元数据](results/chat-control/artifact-metadata/features-instruct-chat-formal.meta.json)。模型使用 eager attention、最大长度 2,048；模型加载、精度选择和冻结逻辑见 [`_load_model`](src/mechanistic_probe/extract.py)，正式运行顺序见 [`run_formal.sh`](scripts/run_formal.sh)。单个随机种子只是 sanity control，不估计随机初始化方差。
+本轮目标是分析开源 checkpoint 中已经存在的表征，而不是通过 ProofWriter 训练创造该表征。因此 Base、Instruct 和 chat 条件的语言模型参数全部冻结；仅 kNN/逻辑回归探针拟合标签。随机模型复用 Qwen Base 的架构与 tokenizer，以 seed 42 初始化（用固定的随机数种子 42 生成随机模型参数或随机抽样结果。）用于判断探针是否只利用了架构、标签分布或数据规律。四个条件在 24 GB RTX 3090 上逐个加载；该 GPU 支持 BF16，实际 chat 元数据也记录为 `bfloat16`，见[产物元数据](results/chat-control/artifact-metadata/features-instruct-chat-formal.meta.json)。模型使用 eager attention、最大长度 2,048；模型加载、精度选择和冻结逻辑见 [`_load_model`](src/mechanistic_probe/extract.py)，正式运行顺序见 [`run_formal.sh`](scripts/run_formal.sh)。单个随机种子只是 sanity control，不估计随机初始化方差。
 
 ### 5.4 为什么同时保留 raw prompt 和原生 chat control
 
