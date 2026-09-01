@@ -23,5 +23,6 @@ results/*
 # Local environment files
 .env
 .DS_Store
+.vscode/
 
 tmp/

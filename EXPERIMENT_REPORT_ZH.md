@@ -117,6 +117,10 @@ $$
 | 端任务评分 | 下一 token 分类形式 | 比较 `True`/`False` 候选的平均 token log-probability，见[候选评分代码](src/mechanistic_probe/extract.py) | tokenizer、prompt 和模型不同，准确率不可直接横比 |
 | 因果实验 | GPT-2FT 合成任务上做注意力头剪枝 | 未做 activation patching、attention ablation 或 head pruning | 可解码性，暂时没有因果使用 |
 
+> knn（本质 距离加权）:把一个问题的“事实/规则 + 问题”输入冻结的语言模型；得到该问题内部的 attention；对每条语句分别提取一个高维向量：用 gold proof 给这条语句标注标签（底层数据集有标准证明字符串，但不是直接给好的“每条语句标签”。项目再根据 proof 把证明中的节点映射回事实/规则，生成每条语句的标签），例如：是否属于证明路径：0/1证明高度：0/1 对测试问题中的每条语句，也提取同样格式的向量；在训练折的语句向量中找到 Manhattan 距离最近的 8 个；根据这 8 个训练样本的标签进行距离加权投票；将预测标签与测试样本的 gold 标签比较，计算 macro-F1。
+
+>加入类别平衡逻辑回归属于额外的建模选择，用来让 probe 本身也更公平地学习少数类别。
+
 ### 4.2 可放在同一量纲下的跨研究数值对照
 
 原论文[附录 Table 8 的未归一化 SP2 kNN macro-F1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=18)，与本实验 paper-style 分桶 raw macro-F1 对照；单位均为百分比。
@@ -153,7 +157,7 @@ depth-1：需要应用一次规则
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 问题数 | 154 | 1,024 | 1,024 | 1,024 | 1,024 | 1,024 | 1,003 | 6,277 |
 
-这产生 85,820 条语句级记录。分桶的目的是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。[`_select_demos`](src/mechanistic_probe/prepare.py)。
+这产生 85,820 条语句级记录（ProofWriter theory 中的一条事实或规则，不是一个完整问题。）。分桶的目的是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。[`_select_demos`](src/mechanistic_probe/prepare.py)。
 
 ### 5.3 同时保留 raw prompt 和原生 chat control
 
@@ -232,8 +236,8 @@ SP1 使用全部 85,820 条语句；SP2 仅使用 depth-1 证明中的 5,614 条
 
 ## 7. 结论
 
-本实验成功建立了 grounding–reasoning 分离研究的**推理侧观测量**：在不微调语言模型、完整 theory 严格隔离的条件下，冻结 Qwen2.5-7B Base 和 Instruct 的注意力特征都能明显优于同架构随机模型地解码金标准证明相关性（SP1）与 depth-1 证明步骤高度（SP2）。这一结果与 Hou 等人“注意力中包含推理树信息”的核心观察一致，但不能升级为“模型一定按金标准证明树进行因果推理”。
+本实验成功建立了 grounding–reasoning 分离研究的**推理侧观测量**：在不微调语言模型、完整 theory 严格隔离的条件下，冻结 Qwen2.5-7B Base 和 Instruct 的注意力特征都能明显优于同架构随机模型地解码标准证明相关性（SP1）与 depth-1 证明步骤高度（SP2）。这一结果与 Hou 等人“注意力中包含推理树信息”的核心观察一致，但不能升级为“模型一定按标准证明树进行因果推理”。
 
-Base 与 Instruct 没有统一的胜负关系。Base 在 kNN SP2 上更高，Instruct 在 Linear SP2 上更高；原生 chat 对照没有消除这一方向反转。因而当前证据更支持 instruction tuning 改变了表征几何，而不支持“指令微调统一增强/削弱符号推理”的标量结论。端任务准确率同样受 prompt 和候选 token 化影响，不能单独作为内部推理结构的证据。
+Base 与 Instruct 没有统一的胜负关系。Base 在 kNN SP2 上更高，Instruct 在 Linear SP2 上更高；原生 chat 对照没有消除这一方向反转。因而当前证据更支持 instruction tuning 改变了表征几何，而不支持“指令微调统一增强/削弱符号推理”的结论。端任务准确率同样受 prompt 和候选 token 化影响，不能单独作为内部推理结构的证据。
 
-本实验也**没有完成 grounding–reasoning 的最终分离**：SP1 测量的是证明相关性，不测量实体—谓词绑定、符号身份或指称对齐；本实验没有 grounding 标签，也没有 activation patching、ablation 或注意力头剪枝。因此可接受的最终表述是：当前工作复现并加强了 MechanisticProbe 的 ProofWriter 推理侧测量，增加了严格 theory 切分、随机权重控制、第二类探针、配对置信区间和原生 chat 控制；下一阶段仍需在保持证明拓扑不变的情况下操纵实体/谓词绑定，并以因果干预检验 grounding 信号与 SP2 是否可选择性分离。
+当前工作复现并加强了 MechanisticProbe 的 ProofWriter 推理侧测量，增加了严格 theory 切分、随机权重控制、第二类探针、配对置信区间和原生 chat 控制；下一阶段可以在保持证明拓扑不变的情况下操纵实体/谓词绑定，并以因果干预检验 grounding 信号与 SP2 是否可选择性分离。
