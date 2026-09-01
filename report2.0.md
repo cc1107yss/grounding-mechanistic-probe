@@ -21,7 +21,7 @@
 1. 对因果语言模型，首先聚焦于用于预测下一 token 的最后一个输入 token 的注意力，将特征规模降为 $L\times H\times |T|$。
 2. 对所有注意力头取均值，将规模进一步降为 $L\times |T|$。
 3. 在 ProofWriter 和 ARC 上，把每条自然语言语句视为一个超节点：对语句内部 token 的注意力取均值，对问题 token 取最大值，从而为每层、每条语句得到一个标量。
-4. 对 LLaMA，作者保留完整模型的任务性能，然后只剪掉 probing 输入中的某些 attention layer 特征，观察剩余层是否仍足以恢复推理信息。ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，。GPT-2 的 head pruning（被剪掉的 head 输出被置为 0）
+4. 对 LLaMA，作者保留完整模型的任务性能，然后只剪掉 probing 输入中的某些 attention layer 特征，观察剩余层是否仍足以恢复推理信息。ProofWriter 的 4-shot LLaMA 删除了 32 层中的 13 个顶层，LLaMAFT 删除了 2 个中间层和 16 个顶层，[附录 C.2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。GPT-2 的 head pruning（被剪掉的 head 输出被置为 0）
 
 ### 2.3 将推理树恢复拆成两个探针任务
 
@@ -31,13 +31,13 @@ $$
 P(G\mid A)=P(V\mid A)\,P(G\mid V,A),
 $$
 
-其中 $V$ 是标准推理树中的节点集合（所有真正参与推理的节点集合）：
+其中 $V$ 是标准推理树中的节点集合（所有真正参与推理的节点集合）（[论文第 3.3 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=4)）：
 
 - **SP1：有用语句选择。** 二分类判断输入语句是否属于 $V$，即它是否出现在标准证明中。
 - **SP2：推理树高度。** 在已知有用语句集合 $V$ 的条件下，分类每个有用语句在推理树中的高度，从而恢复树的步骤结构。
 
 原论文使用非参数 kNN 探针，以 macro-F1 衡量两项分类任务，并以同架构随机初始化模型的注意力作为控制。论文主表报告的不是 raw macro-F1，而是相对随机基线归一化后的分数（真实模型的 attention 比随机模型的 attention 多提供了多少推理信息，v推理树中的有用节点集合，g- 完整的标准推理树
-\(V\)）：
+\(V\)）（[论文公式 1–2](https://aclanthology.org/2023.emnlp-main.299.pdf#page=5)）：
 
 $$
 SP1=\frac{F1(V\mid A)-F1(V\mid A_{rand})}{1-F1(V\mid A_{rand})},\qquad
@@ -59,6 +59,8 @@ $$
 微调：原论文明确报告了 attention-only fine-tuning 的总体设置和超参数，但没有完整公开 LLaMAFT 的训练实现细节。微调是为了让模型具备稳定的任务能力，并检验“任务能力提升是否伴随着内部推理结构的形成或变清晰”。
 
 抗噪性：作者研究了 probing 分数与模型准确率、抗噪性的关系。结果发现，推理层级分数 \(S_{P2}\) 越高，模型越容易答对，并且越不容易受到输入噪声影响；相比之下，有用节点识别分数 \(S_{P1}\) 与准确率的相关性较弱。这说明，模型能否正确组织推理步骤，比单纯找到相关事实更重要。但该结果只是相关性证据，不能单独证明推理结构对模型输出具有因果作用。
+
+任务、模型和训练设置来自[论文第 2.2 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=2)及[附录 C.1](https://aclanthology.org/2023.emnlp-main.299.pdf#page=16)。ProofWriter 去除了循环、多证明标注和错误深度样例，并仅保留证明深度不超过 1 的样例，以规避深层证明树的结构歧义；清洗规则与数据量见[附录 C.3–C.4](https://aclanthology.org/2023.emnlp-main.299.pdf#page=17)。论文为效率从测试集随机抽取 1,024 个样例用于 LLaMA 探针分析。
 
 ### 3.2 原论文主结果
 
@@ -90,10 +92,10 @@ $$
 </div>
 
 - 逐层结果显示，ProofWriter 的 SP1 很早达到平台，而 SP2 持续增长到中间层；作者将其解释为先选择有用语句、再形成推理步骤。对应曲线见[论文 Figure 7–8](https://aclanthology.org/2023.emnlp-main.299.pdf#page=7)。
-- 在 ProofWriter 上，作者重复 2,048 次子采样实验，报告端任务准确率与 SP1、SP2 的 Pearson 相关系数（衡量两个变量是否“线性相关”的指标）分别为 27.42% 和 71.13%；对一条无用语句加噪（把它改写成带否定的形式）后，SP2 较高的样例也更稳健，[论文 Table 3 与 Figure 10](https://aclanthology.org/2023.emnlp-main.299.pdf#page=8)。相关性本身不是因果性。
-- 原论文的因果验证是对**第 k 小元素任务上的 GPT-2FT**进行注意力头剪枝：按与数值大小相关的注意力头指标剪枝会显著损害准确率，而位置相关头更冗余，。论文没有在 ProofWriter 的 LLaMA 上完成同等的头剪枝因果实验。
+- 在 ProofWriter 上，作者重复 2,048 次子采样实验，报告端任务准确率与 SP1、SP2 的 Pearson 相关系数（衡量两个变量是否“线性相关”的指标）分别为 27.42% 和 71.13%；对一条无用语句加噪（把它改写成带否定的形式）后，SP2 较高的样例也更稳健，见[论文 Table 3 与 Figure 10](https://aclanthology.org/2023.emnlp-main.299.pdf#page=8)。相关性本身不是因果性。
+- 原论文的因果验证是对**第 k 小元素任务上的 GPT-2FT**进行注意力头剪枝：按与数值大小相关的注意力头指标剪枝会显著损害准确率，而位置相关头更冗余，[论文第 5 节](https://aclanthology.org/2023.emnlp-main.299.pdf#page=8)。论文没有在 ProofWriter 的 LLaMA 上完成同等的头剪枝因果实验。
 
-原作者最终将“多数样例的注意力中可以检测到金标准推理树信息”解释为语言模型可能在架构内部进行机制性的多步推理。更严格地说，ProofWriter/ARC 部分主要提供可解码性、逐层模式和相关性证据；其中最直接的剪枝因果证据来自 GPT-2FT 合成任务。
+原作者最终将“多数样例的注意力中可以检测到金标准推理树信息”解释为语言模型可能在架构内部进行机制性的多步推理（[论文结论](https://aclanthology.org/2023.emnlp-main.299.pdf#page=9)）。更严格地说，ProofWriter/ARC 部分主要提供可解码性、逐层模式和相关性证据；其中最直接的剪枝因果证据来自 GPT-2FT 合成任务。
 
 ## 4. 本复现实验与原论文实验的严格对比
 
@@ -107,7 +109,7 @@ $$
 | ProofWriter 数据 | 原作者清洗并重分 depth；LLaMA 分析随机抽取 1,024 个测试样例 | 直接使用[原作者发布的 processed CWA](https://huggingface.co/datasets/yyyyifan/MechanisticProbe_ProofWriter_ARC)，冻结 6,277 个测试问题 | 一致 |
 | 深度 | ProofWriter 仅 depth 0/1 | 仅 depth 0/1；SP2 只使用 depth-1 的金标准有用语句 | 一致 |
 | ICL prompt | 选择表现最好的 4-shot；简单 raw completion 模板 | 主实验也使用四个固定 raw completion demos；另补 Instruct 原生多轮 chat 对照 | raw 条件接近原模板；chat 是新增控制 |
-| 注意力池化 | 语句 token 均值 → 问题 token 最大值 → 注意力头均值 | 相同顺序， | 一致 |
+| 注意力池化 | 语句 token 均值 → 问题 token 最大值 → 注意力头均值 | 相同顺序，[特征抽取实现](src/mechanistic_probe/extract.py) | 一致 |
 | 层处理 | 在开发集约束下剪层；ProofWriter 4-shot LLaMA 保留 19/32 层 | 保留 Qwen 的全部 28 层并绘制 layer-prefix 曲线 | 未复现剪层步骤 |
 | 探针 | kNN；主表报告随机归一化 SP1/SP2 | 8 邻居、距离加权、Manhattan kNN，并增加类别平衡逻辑回归；报告 raw macro-F1 | 用原论文附录 raw macro-F1 作数值对照 |
 | 切分 | 原论文报告抽样分析及其 kNN 结果 | “paper-style”为语句级 StratifiedKFold；主要结果为按完整 theory 隔离的 GroupKFold，均为五折 | 切分更明确[探针代码](src/mechanistic_probe/probe.py) |
@@ -129,6 +131,8 @@ F1 是综合衡量分类效果的指标，计算准确率（Precision）和召�
 
 Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平均值，用来衡量探针分类性能。
 
+depth-1：需要应用一次规则
+
 | 语句数 | 原论文 LLaMA 4-shot | 原论文 LLaMAFT | Qwen Base raw | Qwen Instruct raw | Qwen Instruct chat |
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2 | 100.00 | 100.00 | 97.22 | 97.22 | 97.22 |
@@ -139,13 +143,13 @@ Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平
 | 20 | 89.74 | 96.98 | 82.74 | 83.30 | 83.95 |
 | 24 | 90.51 | 97.31 | 86.62 | 84.12 | 84.40 |
 
-两项研究都能从注意力特征中较好地解码 depth-1 有用语句的高度。
+这些数字支持一个稳健的共同定性观察：两项研究都能从注意力特征中较好地解码 depth-1 有用语句的高度。原论文 Table 8 的 ProofWriter 分桶 SP1 只对应 depth-1，而本实验分桶 SP1 汇总包含 depth-0 与 depth-1。
 
 ## 5. 本复现实验设计
 
 ### 5.1 为什么只复现 ProofWriter
 
-本项目的总问题是能否把符号 grounding 与符号 reasoning 分离。本轮先建立**推理侧测量**：SP1 判断证明相关性，SP2 判断证明步骤高度。ProofWriter 同时提供自然语言事实/规则、真假答案和金标准证明树，因而可以在不微调语言模型的前提下直接构造这两个监督标签。第 k 小元素任务主要服务于原论文的合成机制与头剪枝验证；ARC 的原始数据没有证明树，原论文依赖额外人工标注且样本较少。
+本项目的总问题是能否把符号 grounding 与符号 reasoning 分离。本轮先建立**推理侧测量**：SP1 判断证明相关性，SP2 判断证明步骤高度。ProofWriter 同时提供自然语言事实/规则、真假答案和金标准证明树，因而可以在不微调语言模型的前提下直接构造这两个监督标签。第 k 小元素任务主要服务于原论文的合成机制与头剪枝验证；ARC 的原始数据没有证明树，原论文依赖额外人工标注且样本较少。[项目范围说明](README.md#scope)与[数据准备实现](src/mechanistic_probe/prepare.py)。
 
 ### 5.2 冻结样本、固定 demonstrations 与分桶
 
@@ -155,22 +159,26 @@ Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 问题数 | 154 | 1,024 | 1,024 | 1,024 | 1,024 | 1,024 | 1,003 | 6,277 |
 
-这产生 85,820 条语句级记录（ProofWriter theory 中的一条事实或规则，不是一个完整问题。）。分桶的目的是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。
+这产生 85,820 条语句级记录（ProofWriter theory 中的一条事实或规则，不是一个完整问题。）。分桶的目的是在固定计算预算下覆盖不同干扰语句数量，检验语句增多时 SP1/SP2 是否退化。四个 ICL demonstrations 从 train split 中固定选取，要求语句数不超过 4，且按 True/False/True/False 平衡；这样既控制标签，又为最长 theory 保留上下文空间。[`_select_demos`](src/mechanistic_probe/prepare.py)。
 
 ### 5.3 同时保留 raw prompt 和原生 chat control
 
-主实验让 Base 与 Instruct 接收完全相同的 raw completion prompt，便于控制输入文本；但 raw prompt 不是 Instruct checkpoint 的原生使用方式。为区分 checkpoint 差异和 prompt-format 效应，本实验只补跑一次 Instruct native chat：调用官方 `apply_chat_template`，保留默认 system message，把相同四个 demos 编成四组 user→assistant 消息，最终问题作为 user 消息，并设置 `add_generation_prompt=True`。raw 候选是带前导空格的 `" True"`/`" False"`，chat 候选是无前导空格的 `"True"`/`"False"`。
+主实验让 Base 与 Instruct 接收完全相同的 raw completion prompt，便于控制输入文本；但 raw prompt 不是 Instruct checkpoint 的原生使用方式。为区分 checkpoint 差异和 prompt-format 效应，本实验只补跑一次 Instruct native chat：调用官方 `apply_chat_template`，保留默认 system message，把相同四个 demos 编成四组 user→assistant 消息，最终问题作为 user 消息，并设置 `add_generation_prompt=True`。raw 候选是带前导空格的 `" True"`/`" False"`，chat 候选是无前导空格的 `"True"`/`"False"`。渲染、span 对齐和候选定义见[实现](src/mechanistic_probe/extract.py)及[回归测试](tests/test_prompt_rendering.py)。
+
+chat 流水线没有重新抽取 Base、raw Instruct 或 random。预检记录并保护旧样本和特征 SHA-256，运行后再次验证哈希、行顺序和金标签，见[预检基线](results/chat-control/chat-control-baseline.json)、[运行后验证](results/chat-control/chat-control-validation.json)和[验证代码](src/mechanistic_probe/validate_chat_control.py)。
 
 ### 5.4 增加严格切分、线性探针和 bootstrap
 
-- **严格 GroupKFold：** 同一 theory 会产生多条语句级记录；若这些语句跨训练/测试折，探针可能利用共享上下文。主要结果按完整 `theory_group` 隔离，paper-style 语句级分层五折仅用于延续原探针风格。
+- **严格 GroupKFold：** 同一 theory 会产生多条语句级记录；若这些语句跨训练/测试折，探针可能利用共享上下文。主要结果按完整 `theory_group` 隔离，paper-style 语句级分层五折仅用于延续原探针风格。两种切分见[代码](src/mechanistic_probe/probe.py)。
 - **kNN + Linear：** kNN 对局部邻域几何敏感，逻辑回归检验线性可分性。两者方向若不一致，就不能把表征压缩成“更好/更差”的单一结论。
 - **全部 28 层：** 本实验不根据端任务开发集剪层，而报告 layer-prefix 曲线，未做先选择“有用层”再探测同一结构；与原论文的剪层 LLaMA 特征不完全相同。
-- **1,000 次 cluster bootstrap：** 置信区间和成对差值在 paper-style 下以问题、严格切分下以完整 theory 为抽样单元；
+- **1,000 次 cluster bootstrap：** 置信区间和成对差值在 paper-style 下以问题、严格切分下以完整 theory 为抽样单元；[正式收尾脚本](scripts/finalize_formal.sh)和[探针 bootstrap 代码](src/mechanistic_probe/probe.py)。
 
 ## 6. 本复现实验结果
 
 ### 6.1 严格切分的总体结果
+
+为显示切分影响，先列出 paper-style 与严格切分的 kNN 点估计。paper-style 是语句级 StratifiedKFold；strict 是完整 theory 隔离的 GroupKFold。[正式结果汇总](RESULTS.md)与[chat paper JSON](results/chat-control/probe-chat-control-paper.json)。
 
 | 条件 | paper SP1 | paper SP2 | strict SP1 | strict SP2 |
 | --- | ---: | ---: | ---: | ---: |
@@ -179,14 +187,14 @@ Raw macro-F1 ：不经过随机基线归一化，直接计算各类别 F1 的平
 | Instruct（native chat） | 0.7344 | 0.8945 | 0.7155 | 0.8685 |
 | 随机权重（raw） | 0.5130 | 0.6299 | 0.4980 | 0.5992 |
 
-严格切分下的 kNN 点估计全部低于对应 paper-style 值，说明把同一 theory 的语句隔离到同一折是实质性控制。以下将严格切分作为主要结果。
+严格切分下的 kNN 点估计全部低于对应 paper-style 值，说明把同一 theory 的语句隔离到同一折是实质性控制。以下将严格切分作为主要结果。方括号是 1,000 次 theory-cluster bootstrap（以完整 theory 为单位进行 1,000 次有放回重采样，用来估计结果的 95% 置信区间。） 的 95% 置信区间
 
 | 条件 | SP1 kNN | SP1 Linear | SP2 kNN | SP2 Linear | 端任务准确率 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Base（raw） | **0.7184** | **0.6692** | **0.8889** | 0.6447  | **0.7762** |
-| Instruct（raw） | 0.7122 | 0.6643  | 0.8677  | 0.6544  | 0.7610 |
-| Instruct（native chat） | 0.7155  | 0.6671 | 0.8685  | **0.6620** | 0.7440 |
-| 随机权重（raw） | 0.4980  | 0.5061  | 0.5992  | 0.5185  | 0.4913 |
+| Base（raw） | **0.7184** [0.7108, 0.7253] | **0.6692** [0.6648, 0.6732] | **0.8889** [0.8786, 0.8991] | 0.6447 [0.6301, 0.6578] | **0.7762** |
+| Instruct（raw） | 0.7122 [0.7053, 0.7190] | 0.6643 [0.6603, 0.6682] | 0.8677 [0.8570, 0.8777] | 0.6544 [0.6400, 0.6672] | 0.7610 |
+| Instruct（native chat） | 0.7155 [0.7086, 0.7223] | 0.6671 [0.6629, 0.6708] | 0.8685 [0.8580, 0.8793] | **0.6620** [0.6475, 0.6743] | 0.7440 |
+| 随机权重（raw） | 0.4980 [0.4939, 0.5021] | 0.5061 [0.4994, 0.5121] | 0.5992 [0.5850, 0.6131] | 0.5185 [0.5036, 0.5339] | 0.4913 |
 
 SP1 使用全部 85,820 条语句；SP2 仅使用 depth-1 证明中的 5,614 条金标准有用语句。三个使用训练后 checkpoint 的条件在两项任务上均高于同架构随机权重条件，说明这些冻结注意力特征含有训练后形成的证明相关性和步骤高度信息。但“可由探针解码”不等于模型在生成答案时因果地使用该信息。
 
@@ -205,17 +213,28 @@ SP1 使用全部 85,820 条语句；SP2 仅使用 depth-1 证明中的 5,614 条
 | Base(raw) − Instruct(chat) | SP2 | kNN | +0.0204 | [0.0104, 0.0308] |
 | Base(raw) − Instruct(chat) | SP2 | Linear | −0.0173 | [−0.0222, −0.0122] |
 
-不能概括为“Base 的推理表征整体优于 Instruct”。SP1 在 raw 对比中对 Base 有很小但置信区间不含 0 的优势；SP2 则出现探针依赖的方向反转：kNN 偏向 Base，Linear 偏向 Instruct。
+因此，不能概括为“Base 的推理表征整体优于 Instruct”。SP1 在 raw 对比中对 Base 有很小但置信区间不含 0 的优势；SP2 则出现探针依赖的方向反转：kNN 偏向 Base，Linear 偏向 Instruct。更准确的描述是，instruction tuning 伴随表征几何的轻微重排，而不是对单一“推理能力轴”的一致升降。
 
-### 6.4 分桶与逐层结果
+### 6.4 纯 prompt-format 效应
+
+| 比较 | 任务 | 探针 | macro-F1 差值 | 95% CI |
+| --- | --- | --- | ---: | ---: |
+| Instruct(raw) − Instruct(chat) | SP1 | kNN | −0.0033 | [−0.0071, 0.0004] |
+| Instruct(raw) − Instruct(chat) | SP1 | Linear | −0.0028 | [−0.0046, −0.0009] |
+| Instruct(raw) − Instruct(chat) | SP2 | kNN | −0.0008 | [−0.0103, 0.0080] |
+| Instruct(raw) − Instruct(chat) | SP2 | Linear | −0.0076 | [−0.0116, −0.0036] |
+
+同一 Instruct checkpoint 内，chat 相对 raw 的 kNN 差异在 SP1/SP2 上都与 0 相容；Linear 则小幅偏向 chat。与此同时，端任务准确率从 0.7610 降到 0.7440，即描述性下降 0.0170。由此只能说，当前原生 chat 包装对注意力特征可解码性的影响很小，但会改变固定候选评分行为；不能把行为准确率和 probe decodability 当作同一个量。
+
+### 6.5 分桶与逐层结果
 
 ![严格切分下 SP1 与 SP2 的 layer-prefix 探针曲线](results/chat-control/figures/combined-layer-curves-strict.png)
 
-图中每个子图对应一个模型条件，使用严格 theory-level GroupKFold 下的 kNN macro-F1；红色为 SP1，蓝色为 SP2。横轴是逐步加入的层数，末端标记表示使用全部 28 层的结果。
+图中每个子图对应一个模型条件，使用严格 theory-level GroupKFold 下的 kNN macro-F1；红色为 SP1，蓝色为 SP2。横轴是逐步加入的层数，末端标记表示使用全部 28 层的结果。该图展示的是 layer-prefix 分析，不等同于原论文的层剪枝实验。
 
 ![严格切分下按证明高度分组的 SP2 layer-prefix 曲线](results/chat-control/figures/height-class-layer-curves-strict.png)
 
-这张图将同一个 SP2 二分类 kNN 探针的 out-of-fold 预测，按金标准证明高度分别计算 class F1：红色为 height=0，蓝色为 height=1。三种模型条件下，height=0 的 F1 始终较高；两类信息都在前几层迅速出现，随后趋于稳定。
+这张图将同一个 SP2 二分类 kNN 探针的 out-of-fold 预测，按金标准证明高度分别计算 class F1：红色为 height=0，蓝色为 height=1。三种模型条件下，height=0 的 F1 始终较高；两类信息都在前几层迅速出现，随后趋于稳定。由于这是同一探针对两类的分别计分，差异描述的是该设置下两类高度的可分性，不应直接解释为某个推理步骤“更被模型使用”。完整的独立复算数据见 [`probe-height-class-strict.json`](results/chat-control/probe-height-class-strict.json)。
 
 ![paper-style 与严格切分的 layer-prefix 探针曲线](results/chat-control/figures/chat-control-layer-curves.png)
 
@@ -223,10 +242,12 @@ SP1 使用全部 85,820 条语句；SP2 仅使用 depth-1 证明中的 5,614 条
 
 ![严格切分下按语句数量分桶的 kNN macro-F1](results/chat-control/figures/chat-control-bucket-knn.png)
 
-随着语句数增多，SP1 整体下降，符合更多无关语句使相关性选择更困难的解释；SP2 保持较高但并非单调。
+随着语句数增多，SP1 整体下降，符合更多无关语句使相关性选择更困难的解释；SP2 保持较高但并非单调。完整 paper/strict 数字、分桶值和 layer-prefix 数组分别见 [`probe-chat-control-paper.json`](results/chat-control/probe-chat-control-paper.json)与 [`probe-chat-control-strict.json`](results/chat-control/probe-chat-control-strict.json)。
 
 ## 7. 结论
 
 本实验成功建立了 grounding–reasoning 分离研究的**推理侧观测量**：在不微调语言模型、完整 theory 严格隔离的条件下，冻结 Qwen2.5-7B Base 和 Instruct 的注意力特征都能明显优于同架构随机模型地解码标准证明相关性（SP1）与 depth-1 证明步骤高度（SP2）。这一结果与 Hou 等人“注意力中包含推理树信息”的核心观察一致，但不能升级为“模型一定按标准证明树进行因果推理”。
 
 Base 与 Instruct 没有统一的胜负关系。Base 在 kNN SP2 上更高，Instruct 在 Linear SP2 上更高；原生 chat 对照没有消除这一方向反转。因而当前证据更支持 instruction tuning 改变了表征几何，而不支持“指令微调统一增强/削弱符号推理”的结论。端任务准确率同样受 prompt 和候选 token 化影响，不能单独作为内部推理结构的证据。
+
+当前工作复现并加强了 MechanisticProbe 的 ProofWriter 推理侧测量，增加了严格 theory 切分、随机权重控制、第二类探针、配对置信区间和原生 chat 控制；下一阶段可以在保持证明拓扑不变的情况下操纵实体/谓词绑定，并以因果干预检验 grounding 信号与 SP2 是否可选择性分离。

@@ -2,7 +2,7 @@
 
 **English** | [中文](EXPERIMENT_REPORT_ZH.md)
 
-> Advisor-ready summary of the completed **reasoning-side** experiment. This study tests whether proof-relevant and proof-step information is decodable from frozen model attention, and whether instruction tuning or native chat formatting changes that representation. It does not yet test symbolic grounding itself.
+> summary of the completed **reasoning-side** experiment. This study tests whether proof-relevant and proof-step information is decodable from frozen model attention, and whether instruction tuning or native chat formatting changes that representation. It does not yet test symbolic grounding itself.
 
 ## Executive summary
 

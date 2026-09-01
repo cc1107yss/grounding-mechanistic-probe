@@ -203,6 +203,59 @@ def _layer_curve(rows: list[dict[str, Any]], task: str, mode: str) -> list[float
     return curve
 
 
+def _height_class_curves(rows: list[dict[str, Any]], mode: str) -> dict[str, list[float]]:
+    """Return per-class SP2 F1 using cumulative Manhattan-distance 8-NN."""
+    rows = _rows_for_task(rows, "sp2")
+    x = np.asarray([row["features"] for row in rows], dtype=np.float32)
+    y = _labels(rows, "sp2")
+    groups = np.asarray([row["theory_group"] for row in rows])
+    number_of_layers = x.shape[1] if len(x) else 0
+    predictions_by_layer = np.empty((number_of_layers, len(rows)), dtype=np.int64)
+    if mode == "paper":
+        splitter = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        splits = splitter.split(x, y)
+    else:
+        splitter = GroupKFold(n_splits=min(5, len(np.unique(groups))))
+        splits = splitter.split(x, y, groups)
+
+    for train_index, test_index in splits:
+        train_x, train_y = x[train_index], y[train_index]
+        model = KNeighborsClassifier(
+            n_neighbors=8,
+            weights="distance",
+            metric="precomputed",
+        )
+        model.fit(
+            np.zeros((len(train_index), len(train_index)), dtype=np.float32),
+            train_y,
+        )
+        for batch_start in range(0, len(test_index), 256):
+            batch_index = test_index[batch_start : batch_start + 256]
+            test_x = x[batch_index]
+            distances = np.zeros((len(batch_index), len(train_index)), dtype=np.float64)
+            for layer in range(number_of_layers):
+                distances += np.abs(test_x[:, layer, None] - train_x[None, :, layer])
+                predictions_by_layer[layer, batch_index] = model.predict(distances)
+
+    curves: dict[str, list[float]] = {
+        "height_0": [],
+        "height_1": [],
+        "macro": [],
+    }
+    for predictions in predictions_by_layer:
+        scores = f1_score(
+            y,
+            predictions,
+            labels=[0, 1],
+            average=None,
+            zero_division=0,
+        )
+        curves["height_0"].append(float(scores[0]))
+        curves["height_1"].append(float(scores[1]))
+        curves["macro"].append(float(scores.mean()))
+    return curves
+
+
 def _summarize_by_bucket(rows: list[dict[str, Any]], mode: str) -> dict[str, Any]:
     by_bucket: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -247,6 +300,7 @@ def main() -> None:
             },
             "buckets": _summarize_by_bucket(rows, args.mode),
             "layer_curves": {task: _layer_curve(rows, task, args.mode) for task in ("sp1", "sp2")},
+            "height_class_curves": _height_class_curves(rows, args.mode),
         }
     if args.bootstrap_iterations > 0:
         for index, model_a in enumerate(args.models):
