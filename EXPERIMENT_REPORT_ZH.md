@@ -219,7 +219,7 @@ SP1 使用全部 85,820 条语句；SP2 仅使用 depth-1 证明中的 5,614 条
 
 ![paper-style 与严格切分的 layer-prefix 探针曲线](results/chat-control/figures/chat-control-layer-curves.png)
 
-在全部 Qwen 条件中，SP1 在前部层快速上升，SP2 更渐进地累积；这与原论文“相关语句选择较早、步骤信息随后形成”的大方向相符，但本实验没有剪层，而且三种训练 checkpoint 条件的曲线大体接近。因此这里只报告定性顺序，不声称逐层机制已经被严格复刻。
+在全部 Qwen 条件中，SP1 在前部层快速上升，SP2 更渐进地累积；这与原论文“相关语句选择较早、步骤信息随后形成”的大方向相符，但本实验没有剪层，而且三种训练 checkpoint 条件的曲线大体接近。
 
 ![严格切分下按语句数量分桶的 kNN macro-F1](results/chat-control/figures/chat-control-bucket-knn.png)
 
